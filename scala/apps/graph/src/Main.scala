@@ -1,76 +1,264 @@
-package semagrams.graph
+package semagrams.simplepetri
 
 import semagrams.api._
 import semagrams.acsets.{_, given}
-import Graph._
+// import Petris._
+import cats.data._
+import cats.implicits._
+import scala.collection.mutable
 
 import upickle.default._
 import com.raquo.laminar.api.L._
 import cats.effect._
 import scala.scalajs.js.annotation.JSExportTopLevel
 
-case class LabelFor(e: Entity) extends Entity
+import ACSet._
 
-def bindings(es: EditorState, g: Var[Graph], ui: UIState) = {
+/** TODO:
+  *
+  *   - [X] Janky automatic layout
+  *   - [X] Fix focus bug (can't figure out)
+  *   - Write help popup
+  *   - JSON export
+  */
+
+// val conversionSpec = Seq(
+//   (S, "S", Seq((Content, "sname"))),
+//   (T, "T", Seq((Content, "tname"))),
+//   (I, "I", Seq((IS, "is"), (IT, "it"))),
+//   (O, "O", Seq((OS, "os"), (OT, "ot")))
+// )
+
+// def petriFromCLJson(s: String): Option[ACSet] = {
+//   try {
+//     val cljson = read[catlab.ACSet](s)
+//     val mkPetri: State[ACSet, Unit] = conversionSpec.traverse_(
+//       {
+//         case (ob, obS, propSpecs) => {
+//           val propses = cljson(obS).map(m => {
+//             propSpecs.foldLeft(PropMap())(
+//               { case (pm, (p, pS)) =>
+//                 pm.set(p, read[p.Value](m(pS))(p.rw))
+//               }
+//             )
+//           })
+//           addParts(ROOT, ob, propses)
+//         }
+//       }
+//     )
+//     Some(
+//       springLayoutPetri(
+//         mkPetri.run(Petri()).value._1,
+//         BoundingBox(Complex(100, 100), Complex(800, 800))
+//       )
+//     )
+//   } catch {
+//     case e => return None
+//   }
+
+// }
+
+// def clJsonFromPetri(petri: ACSet): String = {
+//   val indexConversion = conversionSpec
+//     .map[Ob](_._1)
+//     .map(ob => ob -> petri.partsOnly(ROOT, ob).zipWithIndex.toMap)
+//     .toMap
+//   def juliaIndex(p: Part) = {
+//     val (ob, i) = p.path(0)
+//     1 + indexConversion(ob)(p)
+//   }
+//   val cljson = conversionSpec
+//     .map(
+//       { case (ob, obS, props) =>
+//         (obS -> petri
+//           .parts(ROOT, ob)
+//           .map(
+//             { case (i, a) =>
+//               props
+//                 .map(
+//                   {
+//                     case (f: Hom, fS) =>
+//                       (fS -> ujson.Num(juliaIndex(a.props(f))))
+//                     case (f, fS) =>
+//                       (fS ->
+//                         a.props
+//                           .get(f)
+//                           .map(x => ujson.Str(x.asInstanceOf[String]))
+//                           .getOrElse(ujson.Null))
+//                   }
+//                 )
+//                 .toMap
+//             }
+//           ))
+//       }
+//     )
+//     .toMap
+//   write(cljson)
+// }
+
+// val springLength = 70.0
+// val springConstant = 0.1
+
+// def springLayoutPetri(petri: ACSet, inside: BoundingBox): ACSet = {
+//   val ps = mutable.Map[Part, Complex]()
+//   val dps = mutable.Map[Part, Complex]()
+//   for ((s, _) <- petri.parts(ROOT, S)) {
+//     ps += (s -> inside.sample())
+//   }
+//   for ((t, _) <- petri.parts(ROOT, T)) {
+//     ps += (t -> inside.sample())
+//   }
+//   def springDiff(s: Part, t: Part, l: Double, c: Double): Unit = {
+//     val diff = ps(s) - ps(t)
+//     val absf = diff.abs - l
+//     val dp = diff.normalize * absf * c
+//     dps += (s -> (dps(s) - dp))
+//     dps += (t -> (dps(t) + dp))
+//   }
+//   def repelDiff(s: Part, t: Part, l: Double, c: Double): Unit = {
+//     val diff = ps(s) - ps(t)
+//     val absf = (diff.abs - l) min 0
+//     val dp = diff.normalize * absf * c
+//     dps += (s -> (dps(s) - dp))
+//     dps += (t -> (dps(t) + dp))
+//   }
+//   def computeDiffs(): Unit = {
+//     for ((s, _) <- petri.parts(ROOT, S)) {
+//       dps += (s -> 0)
+//     }
+//     for ((t, _) <- petri.parts(ROOT, T)) {
+//       dps += (t -> 0)
+//     }
+//     for ((_, a) <- petri.parts(ROOT, I)) {
+//       springDiff(a.props(IS), a.props(IT), springLength, springConstant)
+//     }
+//     for ((_, a) <- petri.parts(ROOT, O)) {
+//       springDiff(a.props(OS), a.props(OT), springLength, springConstant)
+//     }
+//     for ((i, _) <- petri.parts(ROOT, S) ++ petri.parts(ROOT, T)) {
+//       for ((j, _) <- petri.parts(ROOT, S) ++ petri.parts(ROOT, T)) {
+//         if (i != j) {
+//           repelDiff(j, i, springLength * 2, springConstant / 2)
+//         }
+//       }
+//     }
+//   }
+//   def step(): Unit = {
+//     for ((s, _) <- petri.parts(ROOT, S)) {
+//       ps += (s -> (ps(s) + dps(s)))
+//     }
+//     for ((t, _) <- petri.parts(ROOT, T)) {
+//       ps += (t -> (ps(t) + dps(t)))
+//     }
+//   }
+//   computeDiffs()
+//   var n = 1000
+//   while (
+//     dps.values.map(_.abs).foldLeft(0.0)((x, y) => x max y) > 0.1 && n > 0
+//   ) {
+//     step()
+//     computeDiffs()
+//     n -= 1
+//   }
+//   ps.foldLeft(petri)((acs, pv) => acs.setSubpart(pv._1, Center, pv._2))
+// }
+
+
+case object SchGraph extends Schema {
+
+  val obs = Seq(GraphObs.values*)
+  val homs = Seq(GraphHoms.values*)
+  val attrs = Seq()
+
+
+
+  enum GraphObs(_schema: Schema = SchEmpty) extends Ob:    
+    override lazy val schema = _schema
+    case Node, Edge
+
+  import GraphObs._
+
+
+  enum GraphHoms(val doms:Seq[PartType],val codoms:Seq[PartType]) extends Hom:
+    case Src extends GraphHoms(Edge.asDom(),Node.asDom())
+    case Tgt extends GraphHoms(Edge.asDom(),Node.asDom())
+
+  
+  
+}
+
+import SchGraph._
+import GraphObs._
+import GraphHoms._
+
+case class EquationWindow() extends Entity {
+  val ty = EquationWindow
+}
+
+object EquationWindow extends EntityType
+
+def bindings(es: EditorState, g: UndoableVar[ACSet], ui: UIState) = {
   val a = Actions(es, g, ui)
 
   Seq(
-    keyDown("a").andThen(a.add_(V, PropMap().set(MinimumWidth, 60).set(MinimumHeight, 60))),
+    keyDown("s").andThen(a.addAtMouse_(Node)),
     keyDown("d").andThen(a.del),
-    keyDown("e").andThen(a.importExport),
-    keyDown("l").andThen(
-      for {
-        mv <- es.hoveredPart(V)
-        _ <- mv.map(v => a.edit(Label, false)(v)).getOrElse(IO(()))
-      } yield ()),
-    clickOnPart(MouseButton.Left, V).withMods().flatMap(a.dragMove),
-    clickOnPart(MouseButton.Left, V)
+    keyDown("E")
       .withMods(KeyModifier.Shift)
-      .flatMap(a.dragEdge(E, Src, Tgt)),
-    dblClickOnPart(MouseButton.Left, V).withMods().flatMap(a.edit(ImageURL, false)),
+      .andThen(a.importExport),
+    keyDown("z")
+      .withMods(KeyModifier.Ctrl)
+      .andThen(IO(g.undo())),
+    keyDown("Z")
+      .withMods(KeyModifier.Ctrl, KeyModifier.Shift)
+      .andThen(IO(g.redo())),
+    clickOnPart(MouseButton.Left, PartType(Seq(Node)))
+      .withMods(KeyModifier.Shift)
+      .flatMap(a.dragEdge(Edge, Src, Tgt)),
+    clickOnPart(MouseButton.Left, PartType(Seq(Node)))
+      .withMods()
+      .flatMap(a.dragMove),
+    keyDown("e").andThen(for {
+      mx <- es.hoveredPart(Seq(PartType(Seq(Node))))
+      _ <- mx.map(x => a.edit(Content, false)(x)).getOrElse(IO(()))
+    } yield ()),
+    dblClickOnPart(MouseButton.Left, PartType(Seq(Node)))
+      .flatMap(a.edit(Content, false)),
   )
 }
 
 object Main {
-  @JSExportTopLevel("GraphApp")
-  object GraphApp extends Semagram {
+  @JSExportTopLevel("App")
+  object App extends Semagram {
 
     def run(es: EditorState, init: Option[String]): IO[Unit] = {
-      val initg = init match {
-        case Some(s) => read[Graph](s)(ACSet.rw)
-        case None => Graph()
-      }
-      val LabelBox = Box(
-        PropMap()
-          + (MinimumHeight, 8)
-          + (MinimumWidth, 8)
-          + (InnerSep, 0)
-          + (OuterSep, 5)
-      )
       for {
-        g <- IO(Var(initg))
-        lg <- IO(
-          g.signal.map(assignBends[SchGraph.type](Map(E -> (Src, Tgt)), 0.35))
-        )
+        g <- IO(UndoableVar(ACSet(SchGraph)))
+        // sprungg <- IO(
+        //   springLayoutPetri(
+        //     initg,
+        //     BoundingBox(Complex(50, 50), Complex(400, 400))
+        //   )
+        // )
+        // g <- IO(initg)
+        lg = g.signal.map(assignBends(Map(Edge -> (Src, Tgt)), 0.5))
         _ <- es.makeViewport(
+          "mainVP",
           lg,
           Seq(
-            ACSetEntitySource(V, BasicDisc(es)),
-            ACSetEntitySource[SchGraph.type](V, LabelBox).updateEntities(
-              (e,p) => (
-                LabelFor(e),
-                PropMap()
-                  + (Center, p(Center) + Complex(0,-70))
-                  + (Content, p.get(Label).getOrElse(""))
-                  + (Stroke, "none")
-              )
-            ),
-            ACSetEdgeSource(E, Src, Tgt, BasicArrow(es))
+            ACSetEntitySource(Node, BasicDisc(es)),
+            ACSetEdgeSource(Edge, Src, Tgt, BasicArrow(es)),
           )
         )
         ui <- es.makeUI()
+        // _ <- ui.addHtmlEntity(
+        //   EquationWindow(),
+        //   () =>
+        //     PositionWrapper(Position.botMid(15), massActionTypeset(g.signal))
+        // )
         _ <- es.bindForever(bindings(es, g, ui))
       } yield ()
     }
   }
 }
+

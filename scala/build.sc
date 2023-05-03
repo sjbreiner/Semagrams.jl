@@ -78,6 +78,10 @@ object apps extends Module {
     def artifactName = "semagrams-dwd"
   }
 
+  object graph extends SemagramsApp {
+    def desc = "A graph editor"
 
+    def artifactName = "semagrams-graph"
+  }
 
 }

@@ -20,7 +20,7 @@ def assignBends(edges: Map[Ob, (Hom, Hom)], spacing: Double)(
     a: ACSet
 ): ACSet = {
   def ends(i: Part) = {
-    val (src, tgt) = edges(i.ty.path(0))
+    val (src, tgt) = edges(i.headOb)
     for {
       s <- a.trySubpart(src, i)
       t <- a.trySubpart(tgt, i)
@@ -44,5 +44,5 @@ def assignBends(edges: Map[Ob, (Hom, Hom)], spacing: Double)(
       }
     )
 
-  bends.foldLeft(a)({ case (b, (i, bend)) => b.setSubpart(i, Bend, bend) })
+  bends.foldLeft(a)({ case (acset, (i, bend)) => acset.setSubpart(i, Bend, bend) })
 }
