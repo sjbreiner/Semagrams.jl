@@ -17,7 +17,6 @@ import semagrams.util._
 def TextInput[A](v: LensedVar[A, String], multiline: Boolean)(
     finished: Observer[Unit]
 ) = {
-  val noop = [A]=> (a:A) => {}
   val common = Seq(
     value <-- v.signal,
     onInput.mapToValue --> v.writer,
