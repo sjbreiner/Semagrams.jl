@@ -17,9 +17,12 @@ import semagrams.util._
 def TextInput[A](v: LensedVar[A, String], multiline: Boolean)(
     finished: Observer[Unit]
 ) = {
+  val noop = [A]=> (a:A) => {}
   val common = Seq(
     value <-- v.signal,
     onInput.mapToValue --> v.writer,
+    onClick.stopPropagation --> {evt => },
+    onDblClick.stopPropagation --> {evt => },
     onKeyDown.stopPropagation
       .filter(k => k.key == "Escape")
       .mapTo(())
