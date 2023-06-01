@@ -11,8 +11,6 @@ import scala.scalajs.js.annotation.JSExportTopLevel
 
 import org.scalajs.dom
 
-import scala.concurrent.ExecutionContext.Implicits.global
-
 
 case object SchDWD extends Schema {
 
