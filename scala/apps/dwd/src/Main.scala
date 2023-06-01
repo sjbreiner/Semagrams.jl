@@ -318,6 +318,40 @@ object Main {
         )
       )
 
+      val ctrlDiv = dom.document.createElement("div")
+      es.elt.ref.parentNode.appendChild(ctrlDiv)
+
+      val ctrls = div(
+        idAttr := "controls",
+        button("Load",
+          onClick --> {evt => 
+            println("load me")
+          }
+        ),
+        button("Save",
+          onClick --> {evt => 
+            println("save me")
+          }
+        ),
+      )
+
+      render(ctrlDiv,ctrls)
+
+      // val loadButton = dom.document.createElement("button")
+      // loadButton.textContent = "Load"
+
+      // loadButton.addEventListener("click",
+      //   _ => println("load me!")
+      // )
+
+      // val saveButton = dom.document.createElement("button")
+      // saveButton.textContent = "Save"
+
+      // saveButton.addEventListener("click",
+      //   _ => println("save me!")
+      // )
+
+
       implicit val rw: ReadWriter[(ACSet, Complex)] =
         SchDWD.runtimeSerializer("dims", es.size.now())
 
