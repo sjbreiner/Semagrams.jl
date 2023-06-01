@@ -6,8 +6,13 @@ import semagrams.acsets.{_, given}
 import upickle.default._
 import com.raquo.laminar.api.L._
 import cats.effect._
+import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
+
 import org.scalajs.dom
+
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 case object SchDWD extends Schema {
 
@@ -307,6 +312,48 @@ val entitySources = (es: EditorState) =>
 object Main {
   @JSExportTopLevel("App")
   object App extends Semagram {
+    def currentAcsetToString: String = 
+      // TODO: Turn the current acset into a json string
+      "{}"
+
+    def stringToCurrentAcset(value: String) = 
+      // TODO: Turn a json string into the current acset
+      dom.console.log(value)
+
+    def saveButton(filename: String): Element =
+      a(
+        idAttr := "save-anchor",
+        button(
+          "Save",
+          onClick --> {
+            evt => {
+              val a = dom.document.getElementById("save-anchor").asInstanceOf[dom.html.Anchor]
+              val acsetJsonData = currentAcsetToString
+              val acsetURIComponent = js.URIUtils.encodeURIComponent(acsetJsonData)
+              a.setAttribute("href", s"data:text/json;charset=utf-8,$acsetURIComponent")
+              a.setAttribute("download", filename)
+              //a.click()
+            }
+          }
+        ),
+      )
+
+    def loadButton: Element =
+      input(
+        `type` := "file",
+        onChange --> {
+          evt => {
+            var files = evt.target.asInstanceOf[dom.html.Input].files
+            var file = files(0)
+            var reader = new dom.FileReader();
+            reader.onload = (evt) => {
+              val result = s"${reader.result}"
+              stringToCurrentAcset(result)
+            }
+            reader.readAsText(file)
+          }
+        }
+      )
 
     def run(es: EditorState, init: Option[String]): IO[Unit] = {
 
@@ -323,19 +370,11 @@ object Main {
 
       val ctrls = div(
         idAttr := "controls",
-        button("Load",
-          onClick --> {evt => 
-            println("load me")
-          }
-        ),
-        button("Save",
-          onClick --> {evt => 
-            println("save me")
-          }
-        ),
+        saveButton("acset.json"),
+        loadButton,
       )
 
-      render(ctrlDiv,ctrls)
+      render(ctrlDiv, ctrls)
 
       // val loadButton = dom.document.createElement("button")
       // loadButton.textContent = "Load"
