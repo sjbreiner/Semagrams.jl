@@ -124,7 +124,7 @@ case class Wire() extends Sprite {
         val len = splits.length
         splits.toSeq.map((str, line) =>
           L.svg.tspan(
-            L.textToNode(str),
+            L.textToTextNode(str),
             textAnchor := "middle",
             x <-- data.map(p => labelPos(p).x.toString()),
             y <-- data.map(p =>
@@ -134,7 +134,8 @@ case class Wire() extends Sprite {
           )
         )
       },
-      fontSize <-- data.map(fontsize(_).toString())
+      fontSize <-- data.map(fontsize(_).toString()),
+      pointerEvents := "none"
     )
 
     val wire = path(

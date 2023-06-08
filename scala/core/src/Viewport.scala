@@ -117,7 +117,7 @@ object Viewport {
   def render($m: Signal[EntityCollection]): Signal[Seq[SvgElement]] = {
     val $em = $m.map(_.em)
     val $svgMap =
-      $em.foldLeft(m => updateRendered($em)(Map[Entity, SvgElement](), m))(
+      $em.scanLeft(m => updateRendered($em)(Map[Entity, SvgElement](), m))(
         updateRendered($em)
       )
     $m.combineWith($svgMap).map((m, svgMap) => m.ordering.map(svgMap))
@@ -135,7 +135,8 @@ object Viewport {
         // Only update propMap when it exists in $m, don't error when it's deleted
         val propMapStream =
           $m.changes.map(_.get(ent)).collect { case Some(x) => x._2 }
-        val $propMap = propMapStream.toSignal(propMap)
+        // deduplicate changes to the controller for entities with .distinct
+        val $propMap = propMapStream.toSignal(propMap).distinct
         (ent, sprite.present(ent, propMap, $propMap, (ent, elt) => ()))
       })
       .toMap

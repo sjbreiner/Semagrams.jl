@@ -34,7 +34,7 @@ case class Rect(val props: PropMap) extends Sprite {
         val l = splits.length
         splits.toIndexedSeq.map({ case (t, i) =>
           L.svg.tspan(
-            L.textToNode(t),
+            L.textToTextNode(t),
             textAnchor := "middle",
             x <-- data.map(p =>
               p.get(Center).getOrElse(Complex(50, 50)).x.toString()
@@ -48,7 +48,8 @@ case class Rect(val props: PropMap) extends Sprite {
           )
         })
       ),
-      fontSize <-- data.map(_(FontSize).toString)
+      fontSize <-- data.map(_(FontSize).toString),
+      pointerEvents := "none"
     )
 
     val box = rect(
