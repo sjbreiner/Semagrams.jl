@@ -376,6 +376,18 @@ object Main {
           */
         )
 
+      def nestingString(es:EditorState,g:UndoableVar[ACSet]) = 
+
+        def helper(part:Part,acs:ACSet): String = part.path match
+          case Seq() => "ROOT"
+          case _ => helper(part.init,acs) + " > " + acs.subpart(Content,part)
+
+        span(
+          child <-- g.signal.combineWith(es.currentView.signal).map(
+            (acs,part) => helper(part,acs)
+          )
+        )
+
       val appContainer = dom.document.getElementById("app-container")
 
       val ctrls = div(idAttr := "controls", styleAttr := "display: flex; flex-direction: row; gap: 5px; margin-top: 10px")
@@ -407,6 +419,7 @@ object Main {
           ctrls.amend(
             saveButton(g, "acset.json"),
             loadButton(g),
+            nestingString(es,g)
           )
         }
         _ <- es.bindForever(bindings(es, g, ui, vp))
