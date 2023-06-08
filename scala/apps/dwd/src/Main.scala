@@ -6,7 +6,9 @@ import semagrams.acsets.{_, given}
 import upickle.default._
 import com.raquo.laminar.api.L._
 import cats.effect._
+import scala.scalajs.js
 import scala.scalajs.js.annotation.JSExportTopLevel
+
 import org.scalajs.dom
 
 case object SchDWD extends Schema {
@@ -309,52 +311,8 @@ object Main {
   object App extends Semagram {
 
     def run(es: EditorState, init: Option[String]): IO[Unit] = {
-
-      es.elt.amend(
-        svg.text(
-          "Press \"h\" for help text",
-          svg.y := "99.5%",
-          svg.style := "user-select: none"
-        )
-      )
-
-      val ctrlDiv = dom.document.createElement("div")
-      es.elt.ref.parentNode.appendChild(ctrlDiv)
-
-      val ctrls = div(
-        idAttr := "controls",
-        button("Load",
-          onClick --> {evt => 
-            println("load me")
-          }
-        ),
-        button("Save",
-          onClick --> {evt => 
-            println("save me")
-          }
-        ),
-      )
-
-      render(ctrlDiv,ctrls)
-
-      // val loadButton = dom.document.createElement("button")
-      // loadButton.textContent = "Load"
-
-      // loadButton.addEventListener("click",
-      //   _ => println("load me!")
-      // )
-
-      // val saveButton = dom.document.createElement("button")
-      // saveButton.textContent = "Save"
-
-      // saveButton.addEventListener("click",
-      //   _ => println("save me!")
-      // )
-
-
-      implicit val rw: ReadWriter[(ACSet, Complex)] =
-        SchDWD.runtimeSerializer("dims", es.size.now())
-
+      implicit val rw: ReadWriter[(ACSet, Complex)] = SchDWD.runtimeSerializer("dims", es.size.now())
+      
       val (acs, oldDims) = initOpt
         .flatMap(initstr =>
           read[Map[String, (ACSet, Complex)]](initstr)
@@ -363,6 +321,74 @@ object Main {
         .getOrElse(
           (ACSet(SchDWD), Complex(1, 1))
         )
+      
+      def saveButton(g: UndoableVar[ACSet], filename: String): Element =
+        a(
+          idAttr := "save-anchor",
+          button(
+            //cls := "btn",
+            "Save",
+            onClick --> {
+              (evt: dom.MouseEvent) => {
+                val a = dom.document.getElementById("save-anchor").asInstanceOf[dom.html.Anchor]
+                val acsetJsonData = write[(ACSet, Complex)]((g.now(), es.size.now()))
+                val acsetURIComponent = js.URIUtils.encodeURIComponent(acsetJsonData)
+                a.setAttribute("href", s"data:text/json;charset=utf-8,$acsetURIComponent")
+                a.setAttribute("download", filename)
+                // Unlike other solutions, we do not need to simulate a click because event will bubble
+                //a.click()
+              }
+            }
+          ),
+        )
+
+      def loadButton(g: UndoableVar[ACSet]): Element =
+        span(
+          input(
+            //cls := "hidden",
+            idAttr := "load-input",
+            `type` := "file",
+            onChange --> {
+              evt => {
+                var target = evt.target.asInstanceOf[dom.html.Input]
+                var file = target.files(0)
+                var reader = new dom.FileReader();
+                reader.onload = (evt) => {
+                  val result = reader.result.asInstanceOf[String]
+                  val (acs, oldDims) = read[(ACSet, Complex)](result)
+                  acs.scale(oldDims, es.size.now())
+                  g.update { _ => acs }
+                  //dom.console.log(result)
+                }
+                reader.onerror = (evt) => {
+                  dom.console.log("Error reading:", file)
+                } 
+                reader.readAsText(file)
+              }
+            }
+          ),
+          /*
+          label(
+            forId := "load-input",
+            cls := "btn",
+            "Load"
+          ),
+          */
+        )
+
+      val appContainer = dom.document.getElementById("app-container")
+
+      val ctrls = div(idAttr := "controls", styleAttr := "display: flex; flex-direction: row; gap: 5px; margin-top: 10px")
+
+      render(appContainer, ctrls)
+
+      es.elt.amend(
+        svg.text(
+          "Press \"h\" for help text",
+          svg.y := "99.5%",
+          svg.style := "user-select: none",
+        )
+      )
 
       for {
         g <- IO(UndoableVar(acs.scale(oldDims, es.size.now())))
@@ -377,6 +403,12 @@ object Main {
           entitySources(es)
         )
         ui <- es.makeUI()
+        _ = {
+          ctrls.amend(
+            saveButton(g, "acset.json"),
+            loadButton(g),
+          )
+        }
         _ <- es.bindForever(bindings(es, g, ui, vp))
       } yield ()
     }
